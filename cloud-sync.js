@@ -6,6 +6,7 @@ const read=k=>{try{return JSON.parse(localStorage.getItem(k))}catch{return null}
 const equal=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const empty=x=>x==null||(Array.isArray(x)&&!x.length)||(typeof x==='object'&&!Array.isArray(x)&&!Object.keys(x).length);
 let signal=()=>{};
+const BACKGROUND_SYNC_MS=60000; // Reduce idle Edge Function usage (was 12 seconds).
 export function persist(key,value){try{localStorage.setItem(key,JSON.stringify(value));if(tracked.has(key))signal()}catch(e){console.warn('LUMI: local save failed',e)}}
 // Three-way merge: independent edits survive; unchanged records deleted on one device stay deleted.
 function merge(base,local,remote){
@@ -39,6 +40,8 @@ function merge(base,local,remote){
 }
 export function startCloudSync(initData,userId,onStatus){
  let active=true,busy=false,ready=false,dirty=false,timeout=null,interval=null;
+ let localRevision=0;
+ let lastSync=0;
  const metaKey=`lumi-sync-base-${userId}`;
  let meta=read(metaKey)||{};
  const status=(s)=>{if(active)onStatus(s)};
@@ -49,7 +52,10 @@ export function startCloudSync(initData,userId,onStatus){
   return data;
  };
  const flush=async()=>{
-  if(!active||busy)return;busy=true;status('syncing');let changed=false;
+  if(!active||busy){if(busy)dirty=true;return;}
+  if(typeof document!=='undefined'&&document.visibilityState==='hidden')return;
+  busy=true;status('syncing');let changed=false;
+  const revisionAtStart=localRevision;
   try{
    const snapshot=(await api('read')).records||{};
    const updates=[];
@@ -59,11 +65,16 @@ export function startCloudSync(initData,userId,onStatus){
     const base=previous?previous.value:null;
     // On a new device, merge existing local records with the cloud, never silently discard them.
     const combined=merge(base,local,remote);
-    if(!equal(combined,local)){localStorage.setItem(key,JSON.stringify(combined));changed=true}
+    if(!equal(combined,local)){
+     // A user edit during the network request must not be overwritten.
+     if(localRevision!==revisionAtStart){dirty=true;continue}
+     localStorage.setItem(key,JSON.stringify(combined));changed=true
+    }
     if(!equal(combined,remote))updates.push({key,value:combined,version:record.version});
     else meta[key]={value:remote,version:record.version};
    }
    for(const change of updates){
+    if(localRevision!==revisionAtStart){dirty=true;break}
     let result=await api('write',[change]);let outcome=result.results?.[change.key];
     if(outcome?.conflict){
      // Concurrent edits: merge against the latest server revision and retry.
@@ -75,15 +86,20 @@ export function startCloudSync(initData,userId,onStatus){
     if(!outcome?.ok)throw Error('Конфликт записи '+change.key);
     meta[change.key]={value:read(change.key),version:outcome.version};
    }
-   localStorage.setItem(metaKey,JSON.stringify(meta));ready=true;status('synced');
+   localStorage.setItem(metaKey,JSON.stringify(meta));ready=true;lastSync=Date.now();status('synced');
    // React initializes state from localStorage. Rehydrate once after remote changes.
-   if(changed&&active){window.location.reload();return}
+   if(changed&&active&&localRevision===revisionAtStart){window.location.reload();return}
   }catch(e){console.error('LUMI sync',e);status('error: '+e.message)}
   finally{busy=false;if(dirty&&active){dirty=false;queue()}}
  };
  const queue=()=>{if(!active)return;dirty=true;if(timeout)clearTimeout(timeout);timeout=setTimeout(()=>{dirty=false;flush()},850)};
- signal=()=>{if(ready)queue()};
- flush();interval=setInterval(()=>{if(!busy)flush()},12000);
- const onOnline=()=>queue();window.addEventListener('online',onOnline);
- return()=>{active=false;signal=()=>{};clearInterval(interval);clearTimeout(timeout);window.removeEventListener('online',onOnline)};
+ signal=()=>{localRevision++;if(ready)queue();else dirty=true};
+ flush();
+ // A background tab does not spend quota on polling. Foreground tabs refresh at most once per minute.
+ interval=setInterval(()=>{if(document.visibilityState!=='hidden'&&Date.now()-lastSync>=BACKGROUND_SYNC_MS)flush()},BACKGROUND_SYNC_MS);
+ const onOnline=()=>queue();
+ const onFocus=()=>{if(Date.now()-lastSync>5000)queue()};
+ const onVisible=()=>{if(document.visibilityState==='visible'&&Date.now()-lastSync>5000)queue()};
+ window.addEventListener('online',onOnline);window.addEventListener('focus',onFocus);document.addEventListener('visibilitychange',onVisible);
+ return()=>{active=false;signal=()=>{};clearInterval(interval);clearTimeout(timeout);window.removeEventListener('online',onOnline);window.removeEventListener('focus',onFocus);document.removeEventListener('visibilitychange',onVisible)};
 }
