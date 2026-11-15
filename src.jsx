@@ -36,7 +36,7 @@ function KitchenPage(){
  useEffect(()=>{localStorage.setItem('lumi-kitchen-plans-v1',JSON.stringify(plans))},[plans]);
  const known=Object.entries(catalog).filter(([,v])=>v.eat);const available=known.filter(([,v])=>v.have).map(([n])=>n);const missing=known.filter(([,v])=>!v.have).map(([n])=>n);
  const update=(name,patch)=>setCatalog(old=>({...old,[name]:{eat:false,have:false,...old[name],...patch}}));
- const addShopping=(name)=>setShopping(old=>old.some(x=>x.name.toLowerCase()===name.toLowerCase()&&!x.done)?old:[...old,{id:crypto.randomUUID?.()||String(Date.now()+Math.random()),name,done:false}]));
+ const addShopping=(name)=>setShopping(old=>old.some(x=>x.name.toLowerCase()===name.toLowerCase()&&!x.done)?old:[...old,{id:crypto.randomUUID?.()||String(Date.now()+Math.random()),name,done:false}]);
  const addCustom=()=>{const name=custom.trim().slice(0,70);if(!name)return;update(name,{eat:true,have:false});setCustom('');};
  const ranked=RECIPES.map(r=>({...r,have:r.ingredients.filter(n=>available.includes(n)),missing:r.ingredients.filter(n=>!available.includes(n))})).sort((a,b)=>a.missing.length-b.missing.length||b.have.length-a.have.length);
  return <div className="kitchen-v2"><div className="kitchen-heading"><span className="kitchen-heading-icon"><Refrigerator size={23}/></span><div><h2>Моя кухня</h2><p>Продукты, покупки и идеи для ужина</p></div></div><div className="kitchen-tabs">{[['fridge','Холодильник'],['shopping','Покупки'],['meal','План питания']].map(([id,label])=><button key={id} className={tab===id?'active':''} onClick={()=>setTab(id)}>{label}</button>)}</div>
