@@ -74,3 +74,6 @@
 .app.light .cycle-visual-summary>div+div{border-left-color:#e7cce8}
 .app.light .cycle-visual-open{background:linear-gradient(100deg,#f6a6d6,#d867b2);border-color:#e38ec6;color:#321a39}
 @media(prefers-reduced-motion:reduce){.hero-art{transition:none}}
+
+/* 4.1.12: выполнение блюд во всех разделах */
+.meal-check-empty{display:inline-block;width:17px;height:17px;border:2px solid currentColor;border-radius:50%;opacity:.55}.today-card .entries{max-height:350px;overflow-y:auto}.entry.is-done .entry-main strong{text-decoration:line-through;opacity:.65}
