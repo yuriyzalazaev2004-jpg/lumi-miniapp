@@ -27,3 +27,21 @@
 
 /* LUMI 4.1.8 — Russian recipes and multi-select workout planner */
 .nutrition-panel{border:1px solid var(--line);background:var(--panel2);border-radius:15px;padding:13px;margin:14px 0}.nutrition-panel>strong{font-size:13px}.nutrition-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:12px}.nutrition-grid>div{min-width:0;display:flex;flex-direction:column;align-items:center;gap:4px;padding:9px 2px;background:var(--panel);border-radius:11px}.nutrition-grid b{font-size:17px;color:var(--text)}.nutrition-grid small{font-size:9px;color:var(--muted);text-align:center}.recipe-steps{padding-left:23px;margin:10px 0}.recipe-steps li{font-size:13px;line-height:1.65;padding:0 0 12px 4px}.workout-select{position:relative;min-height:75px;justify-content:center}.workout-choice-icon{display:flex;align-items:center;justify-content:space-between;width:100%;color:#a78bfa}.workout-select.active{background:rgba(167,139,250,.2);border-color:#a78bfa}.hub .kitchen-primary:disabled{opacity:.45;cursor:not-allowed}.hub textarea{width:100%;min-width:0;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:12px;resize:vertical}.kitchen-recipe-sheet .sheet-content{max-height:75dvh}.nutrition-panel .kitchen-muted{margin:10px 0 0;font-size:10px}
+
+
+/* LUMI 4.1.10 — decorative cycle illustration and cinematic home hero */
+.cycle-visual{position:relative;isolation:isolate;overflow:hidden;border-radius:24px;min-height:360px;padding:22px 14px 18px;background:#151126 url('./cycle-florals.webp') center/cover no-repeat;box-shadow:inset 0 0 0 1px #ad85ef38,0 12px 35px #09051b30}
+.cycle-visual:before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 43%,#20143811 5%,#0b08234a 80%);z-index:-1;pointer-events:none}
+.cycle-visual-inner{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:15px}
+.cycle-visual-ring{width:min(66vw,236px);height:min(66vw,236px);border-radius:50%;padding:15px;background:conic-gradient(from -50deg,#3c335d 0 18%,transparent 18% 20%,#9864fa 20% 57%,transparent 57% 59%,#e79ad9 59% 89%,transparent 89% 91%,#3c335d 91% 100%);filter:drop-shadow(0 0 11px #9e5cf650)}
+.cycle-visual-center{width:100%;height:100%;border-radius:50%;background:radial-gradient(circle at 50% 50%,#1b1436,#16112b);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:5px;text-align:center;padding:10px;color:#fff}
+.cycle-visual-center small{font-size:11px;color:#d7c7e8}.cycle-visual-center strong{font-size:46px;line-height:1.1}.cycle-visual-center b{font-size:12px;color:#efb4e3}
+.cycle-visual-summary{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:10px;background:#302745d9;border:1px solid #ac80d83b;border-radius:16px;padding:14px 10px}
+.cycle-visual-summary>div{display:flex;flex-direction:column;gap:5px;min-width:0}.cycle-visual-summary>div+div{border-left:1px solid #b69bd03b;padding-left:10px}.cycle-visual-summary span{font-size:10px;color:#d5c5e6}.cycle-visual-summary strong{font-size:13px;color:#fff;overflow-wrap:anywhere}
+.cycle-visual-open{border:1px solid #b68afa99;color:#fff;border-radius:12px;background:linear-gradient(100deg,#7950ca,#ad64b9);padding:11px 16px;display:flex;gap:9px;align-items:center;justify-content:center;width:100%;font-weight:700;font-size:12px}
+#lumi-cycle-calendar{scroll-margin-top:12px}
+.hero.night{background:radial-gradient(circle at 79% 25%,#ad77ce44 0 8%,transparent 9%),linear-gradient(180deg,#15162f 0%,#4b305f 56%,#d27da1 100%);border-color:#b286d44d;box-shadow:0 6px 20px #7d4f9d24}
+.hero.night:before{content:'';position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(#ffffffa6 .7px,transparent 1px),radial-gradient(#f3c8ff80 .6px,transparent 1px);background-size:43px 41px,67px 53px;background-position:8px 7px,24px 18px;opacity:.48}
+.hero.night .hero-sun{width:49px;height:49px;right:33px;top:20px;background:radial-gradient(circle at 22% 24%,#dd9fd3,#8d4b9d 50%,#252145 75%);box-shadow:0 0 16px #d08bda70}
+.hero.night .mountain-a{background:#64416f;bottom:-12px}.hero.night .mountain-b{background:#2b234a;bottom:-25px}.hero.night .mountain-c{background:#15172d;bottom:-43px}
+.app.light .cycle-visual{color:#fff}
