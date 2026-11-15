@@ -7,3 +7,13 @@
 /* LUMI 4.1.2: календарь и удобное поле названия */
 .sheet-content>.field:first-of-type input{font-size:16px;user-select:text;-webkit-user-select:text;touch-action:manipulation}
 .calendar-panel{padding:15px!important}.calendar-month{display:flex;align-items:center;justify-content:space-between;margin-bottom:15px}.calendar-month strong{font-size:15px;text-transform:capitalize}.calendar-month button{display:grid;place-items:center;width:36px;height:36px;border:1px solid var(--line);border-radius:11px;background:var(--panel2);color:var(--text)}.calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}.calendar-weekday{text-align:center;font-size:11px;color:var(--muted);padding:8px 0}.calendar-day{aspect-ratio:1;border:1px solid transparent;background:var(--panel2);color:var(--text);border-radius:11px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:3px;min-width:0}.calendar-day.current{border-color:var(--accent)}.calendar-day.selected{background:linear-gradient(135deg,#b18cff,#7956d9);color:white}.calendar-day i{height:4px;width:4px;border-radius:50%;background:#ee9cb8}.calendar-filters{display:flex;gap:6px;overflow-x:auto;margin:10px 0 15px}.calendar-filters button{flex-shrink:0;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--text);padding:8px 10px;font-size:10px}.calendar-filters button.active{background:#8563dd;color:white;border-color:#8563dd}
+
+/* LUMI 4.1.3: finance amount and sport workout picker */
+.amount-field {padding:12px;border:1px solid rgba(160,132,255,.35);border-radius:16px;background:rgba(145,108,255,.07);margin:10px 0 14px}
+.amount-field input {font-size:20px;font-weight:700;min-height:46px}
+.workout-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}
+.workout-card {display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:5px;min-width:0;border:1px solid rgba(150,145,185,.2);border-radius:15px;padding:12px;background:var(--card,rgba(146,126,220,.08));color:inherit;cursor:pointer}
+.workout-card strong {font-size:13px}.workout-card small {font-size:11px;opacity:.65}.workout-emoji {font-size:25px;line-height:1.3}
+.workout-card.active {border-color:#a78bfa;background:rgba(167,139,250,.17);box-shadow:0 0 0 1px #a78bfa inset}
+.sport-form-choice {margin:16px 0}.sport-form-choice>strong {display:block;margin-bottom:5px}
+@media(max-width:360px){.workout-grid{gap:7px}.workout-card{padding:9px}}
