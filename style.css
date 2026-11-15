@@ -45,3 +45,32 @@
 .hero.night .hero-sun{width:49px;height:49px;right:33px;top:20px;background:radial-gradient(circle at 22% 24%,#dd9fd3,#8d4b9d 50%,#252145 75%);box-shadow:0 0 16px #d08bda70}
 .hero.night .mountain-a{background:#64416f;bottom:-12px}.hero.night .mountain-b{background:#2b234a;bottom:-25px}.hero.night .mountain-c{background:#15172d;bottom:-43px}
 .app.light .cycle-visual{color:#fff}
+
+/* LUMI 4.1.11: real day/night mountain backgrounds, smooth theme crossfade */
+.hero{background:#17142b!important;border-color:var(--line);isolation:isolate;transition:border-color .7s ease,box-shadow .7s ease}
+.hero.day{background:#f6eaff!important}
+.hero-art{position:absolute;inset:0;z-index:0;background-position:center center;background-size:cover;background-repeat:no-repeat;pointer-events:none;transition:opacity .75s ease}
+.hero-art-night{background-image:url('./home-night.webp');opacity:1}
+.hero-art-day{background-image:url('./home-day.webp');opacity:0}
+.hero.day .hero-art-day{opacity:1}
+.hero.day .hero-art-night{opacity:0}
+.hero.night:before{display:none}
+.hero .hero-content{z-index:2;text-shadow:0 1px 5px #0c092044}
+.hero.night .hero-content h2{color:#fff}
+.hero.night .hero-content p{color:#f1e5ff}
+.hero.day .hero-content h2{color:#191633;text-shadow:0 1px 8px #ffffffb8}
+.hero.day .hero-content p{color:#4e496d;text-shadow:0 1px 8px #ffffffb8}
+/* Women's health: light petals on white, dark petals on plum */
+.app.light .cycle-visual{background:#fff9fd url('./cycle-florals-day.webp') center/cover no-repeat;color:#191633;box-shadow:inset 0 0 0 1px #eacde8,0 12px 35px #9b7fc11f}
+.app.light .cycle-visual:before{background:radial-gradient(ellipse at 50% 45%,#fff9fd15 0%,#fff8fc22 80%)}
+.app.light .cycle-visual-ring{background:conic-gradient(from -50deg,#e3d7f4 0 18%,transparent 18% 20%,#f26ebd 20% 57%,transparent 57% 59%,#f6a3d7 59% 89%,transparent 89% 91%,#e3d7f4 91% 100%);filter:drop-shadow(0 0 8px #f7b3d34d)}
+.app.light .cycle-visual-center{background:radial-gradient(circle at 50% 50%,#fffaff,#fdf0fa);color:#191633}
+.app.light .cycle-visual-center strong{color:#191633}
+.app.light .cycle-visual-center small{color:#685477}
+.app.light .cycle-visual-center b{color:#b83c8e}
+.app.light .cycle-visual-summary{background:#ffffffd9;border-color:#f3d3ed;box-shadow:0 4px 18px #d58bb31c}
+.app.light .cycle-visual-summary span{color:#78657f}
+.app.light .cycle-visual-summary strong{color:#251934}
+.app.light .cycle-visual-summary>div+div{border-left-color:#e7cce8}
+.app.light .cycle-visual-open{background:linear-gradient(100deg,#f6a6d6,#d867b2);border-color:#e38ec6;color:#321a39}
+@media(prefers-reduced-motion:reduce){.hero-art{transition:none}}
