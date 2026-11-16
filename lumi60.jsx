@@ -9,8 +9,9 @@ const sections=[['finance','Финансы'],['kitchen','Кухня'],['sport','
 const month=()=>now().slice(0,7);
 const sum=a=>a.reduce((n,x)=>n+Number(x.amount||0),0);
 const parseList=s=>s.split(/[,;\n]/).map(x=>x.trim()).filter(Boolean);
-export default function Lumi60({items=[],habits=[],goals=[],onBack}){
- const [tab,setTab]=useState('finance');
+export default function Lumi60({items=[],habits=[],goals=[],initialTab='finance',onBack}){
+ const [tab,setTab]=useState(initialTab);
+ useEffect(()=>setTab(initialTab),[initialTab]);
  const [savings,setSavings]=useState(()=>get('lumi60-savings',[]));
  const [limits,setLimits]=useState(()=>get('lumi60-limits',[]));
  const [pantry,setPantry]=useState(()=>get('lumi60-pantry',[]));
