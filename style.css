@@ -90,3 +90,6 @@
 
 .lumi50-contact textarea{width:100%;box-sizing:border-box;min-height:76px;resize:vertical;margin:8px 0}
 .lumi50-contact .kitchen-primary{margin-top:5px}
+
+/* LUMI 5.1 */
+.lumi51-campaign-list{display:flex;gap:8px;overflow-x:auto;padding:10px 0}.lumi51-campaign-list button{min-width:180px;padding:12px;border-radius:12px;border:1px solid rgba(155,145,195,.3);background:rgba(150,130,200,.1);color:inherit;text-align:left}.lumi51-campaign-list .lumi51-selected{border-color:#ac8aff}.lumi51-chat{max-height:260px;overflow:auto;padding:12px;border-radius:12px;background:rgba(140,120,180,.1);margin:8px 0}.lumi51-chat p{margin:8px 0;overflow-wrap:anywhere}.lumi51-progress{height:9px;border-radius:9px;background:rgba(130,120,150,.25);overflow:hidden}.lumi51-progress span{display:block;height:100%;background:#a88aff}.lumi51-ad-button{width:100%;border:0;text-align:left;cursor:pointer;color:inherit;font:inherit}
