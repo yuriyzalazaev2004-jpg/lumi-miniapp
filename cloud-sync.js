@@ -1,13 +1,13 @@
 // LUMI: verified Telegram identity -> private Supabase Edge Function -> per-key CAS storage.
 const ENDPOINT='https://umdoukuwhnzdywytcmun.supabase.co/functions/v1/lumi-sync';
-export const DATA_KEYS=['lumi-items','lumi-kitchen-plans-v1','lumi-kitchen-catalog-v1','lumi-kitchen-shopping-v1','lumi-sport-groups-v1','lumi-body-metrics-v1','lumi-cycle-periods-v1','lumi-cycle-settings-v1','lumi-cycle-notes-v1','lumi-cycle-confirmations-v1','lumi-habits-v1','lumi-goals-v1','lumi-reminder-settings-v1','lumi60-savings','lumi60-limits','lumi60-pantry','lumi60-recipes','lumi60-training','lumi60-sessions','lumi60-shared','lumi60-challenges','lumi60-savings','lumi60-limits','lumi60-pantry','lumi60-shopping','lumi60-programs','lumi60-sessions','lumi60-shared-drafts','lumi60-challenges'];
+export const DATA_KEYS=["lumi-items", "lumi-kitchen-plans-v1", "lumi-kitchen-catalog-v1", "lumi-kitchen-shopping-v1", "lumi-sport-groups-v1", "lumi-body-metrics-v1", "lumi-cycle-periods-v1", "lumi-cycle-settings-v1", "lumi-cycle-notes-v1", "lumi-cycle-confirmations-v1", "lumi-habits-v1", "lumi-goals-v1", "lumi-reminder-settings-v1", "lumi60-savings", "lumi60-limits", "lumi60-pantry", "lumi60-recipes", "lumi60-training", "lumi60-sessions", "lumi60-shared", "lumi60-challenges", "lumi60-shopping", "lumi60-programs", "lumi60-shared-drafts"];
 const tracked=new Set(DATA_KEYS);
 const read=k=>{try{return JSON.parse(localStorage.getItem(k))}catch{return null}};
 const equal=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const empty=x=>x==null||(Array.isArray(x)&&!x.length)||(typeof x==='object'&&!Array.isArray(x)&&!Object.keys(x).length);
 let signal=()=>{};
 const BACKGROUND_SYNC_MS=60000; // Reduce idle Edge Function usage (was 12 seconds).
-export function persist(key,value){try{localStorage.setItem(key,JSON.stringify(value));if(tracked.has(key))signal()}catch(e){console.warn('LUMI: local save failed',e)}}
+export function persist(key,value){try{localStorage.setItem(key,JSON.stringify(value));if(tracked.has(key))signal();return true}catch(e){console.error('LUMI: local save failed',e);return false}}
 // Three-way merge: independent edits survive; unchanged records deleted on one device stay deleted.
 function merge(base,local,remote){
  if(equal(local,remote))return local;
@@ -86,7 +86,7 @@ export function startCloudSync(initData,userId,onStatus){
     if(!outcome?.ok)throw Error('Конфликт записи '+change.key);
     meta[change.key]={value:read(change.key),version:outcome.version};
    }
-   localStorage.setItem(metaKey,JSON.stringify(meta));ready=true;lastSync=Date.now();status('synced');
+   localStorage.setItem(metaKey,JSON.stringify(meta));ready=true;lastSync=Date.now();status(dirty?'syncing':'synced');
    // React initializes state from localStorage. Rehydrate once after remote changes.
    if(changed&&active&&localRevision===revisionAtStart){window.location.reload();return}
   }catch(e){console.error('LUMI sync',e);status('error: '+e.message)}

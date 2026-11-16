@@ -1,3 +1,4 @@
+import './rebuild-foundation.css';
 import React,{useEffect,useMemo,useState} from 'react';
 import{createRoot}from'react-dom/client';
 import{Home,CalendarDays,Plus,ChartNoAxesColumn,UserRound,Wallet,Refrigerator,HeartPulse,Dumbbell,Cake,Bell,ChevronLeft,ChevronRight,Trash2,Check,Sun,Moon,ShoppingBasket,House,Wifi,ShieldCheck,Smartphone,HandCoins,Landmark,CreditCard,Receipt,Music2,Clapperboard,Sparkles,Car,Gift,BriefcaseBusiness,Bus,Clock3, X, Pencil,ArrowUpRight,Utensils,CalendarHeart,ChevronDown,Search,Activity,ShoppingCart,ClipboardList,BookOpen,Settings2,Info,Repeat2,Camera,CheckCircle2,Coins,TrendingUp,TrendingDown,ArrowLeft,Heart,Timer,PlusCircle}from'lucide-react';
@@ -175,9 +176,9 @@ function App(){
   const record={...form,title,amount:form.amount===''?'':Math.max(0,Number(form.amount)||0),paid:form.kind==='debt'?Math.max(0,Number(form.paid)||0):form.paid,id:editId||(globalThis.crypto?.randomUUID?.()||String(Date.now())),done:editId?form.done:false,createdAt:form.createdAt||today()};
   const next=editId?items.map(i=>i.id===editId?record:i):[record,...items];
   try{
-    localStorage.setItem('lumi-items',JSON.stringify(next));
+    if(!persist('lumi-items',next))throw new Error('Локальное хранилище недоступно');
     if(JSON.parse(localStorage.getItem('lumi-items')||'[]').some(i=>i.id===record.id)===false)throw new Error('Не удалось подтвердить запись');
-    setItems(next);persist('lumi-items',next);setModal(false);
+    setItems(next);setModal(false);
     if(record.kind==='debt'&&record.type==='finance')setPage('debts');
   }catch(e){console.error('LUMI save error',e);alert('Не удалось сохранить запись на устройстве: '+e.message)}
  };
