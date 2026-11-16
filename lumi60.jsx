@@ -77,9 +77,3 @@ export default function Lumi60({items=[],habits=[],goals=[],onBack}){
   {tab==='wrapped'&&<section className="l60-panel"><h3>Мой месяц · {month()}</h3><div className="l60-grid">{[['Записей',monthItems.length],['Выполнено',monthItems.filter(x=>x.done).length],['Расходы',money(spent)],['Доходы',money(earned)],['Тренировок',monthlySessions.length],['Привычек отмечено',habits.reduce((n,h)=>n+(h.dates||[]).filter(d=>d.startsWith(month())).length,0)]].map(([label,v])=><div className="l60-stat" key={label}><small>{label}</small><strong>{v}</strong></div>)}</div><h3>Итоги года</h3><div className="l60-grid"><div className="l60-stat"><small>Всего записей</small><strong>{items.filter(x=>x.date?.startsWith(now().slice(0,4))).length}</strong></div><div className="l60-stat"><small>Выполненных задач</small><strong>{items.filter(x=>x.done&&x.date?.startsWith(now().slice(0,4))).length}</strong></div></div></section>}
  </div>
 }
-
-export function Lumi60Widget({items=[],habits=[],goals=[],onOpen}){
- const done=items.filter(x=>x.done).length;
- const marks=habits.reduce((n,h)=>n+(h.dates||[]).length,0);
- return <section className="l60-panel l60-widget"><div className="l60-item"><div><strong>✦ Мой прогресс</strong><small>{done} выполнено · {marks} отметок привычек · {goals.length} целей</small></div><button className="l60-btn" onClick={onOpen}>Подробнее</button></div></section>;
-}
