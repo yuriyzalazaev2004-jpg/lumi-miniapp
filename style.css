@@ -87,3 +87,6 @@
 .lumi50-image-preview img{width:100%;max-height:240px;object-fit:contain;border-radius:14px;background:rgba(120,110,160,.12)}
 .lumi50-panel input[type=file]{font-size:13px}
 .lumi50-delete{border:1px solid #d66b79!important;color:#e87b89!important}
+
+.lumi50-contact textarea{width:100%;box-sizing:border-box;min-height:76px;resize:vertical;margin:8px 0}
+.lumi50-contact .kitchen-primary{margin-top:5px}
