@@ -1,6 +1,6 @@
 // LUMI: verified Telegram identity -> private Supabase Edge Function -> per-key CAS storage.
 const ENDPOINT='https://umdoukuwhnzdywytcmun.supabase.co/functions/v1/lumi-sync';
-export const DATA_KEYS=['lumi-items','lumi-kitchen-plans-v1','lumi-kitchen-catalog-v1','lumi-kitchen-shopping-v1','lumi-sport-groups-v1','lumi-body-metrics-v1','lumi-cycle-periods-v1','lumi-cycle-settings-v1','lumi-cycle-notes-v1','lumi-cycle-confirmations-v1'];
+export const DATA_KEYS=['lumi-items','lumi-kitchen-plans-v1','lumi-kitchen-catalog-v1','lumi-kitchen-shopping-v1','lumi-sport-groups-v1','lumi-body-metrics-v1','lumi-cycle-periods-v1','lumi-cycle-settings-v1','lumi-cycle-notes-v1','lumi-cycle-confirmations-v1','lumi-habits-v1','lumi-goals-v1','lumi-reminder-settings-v1'];
 const tracked=new Set(DATA_KEYS);
 const read=k=>{try{return JSON.parse(localStorage.getItem(k))}catch{return null}};
 const equal=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
