@@ -1,6 +1,5 @@
 import React,{useMemo,useState} from 'react';
 import {ArrowLeft,ArrowRight,ArrowUpRight,Bell,CalendarDays,Check,ChevronDown,ChevronLeft,ChevronRight,Clock3,CreditCard,Gift,HandCoins,Plus,Repeat2,TrendingDown,TrendingUp,Wallet,CheckCircle2,Target,Receipt,ChartNoAxesColumn,Search,MoreHorizontal} from 'lucide-react';
-import './lumi-next.css';
 const dateKey=(d)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const dateObj=(s)=>new Date(s+'T12:00:00');
 const currency=(n)=>Number(n||0).toLocaleString('ru-RU')+' ₽';

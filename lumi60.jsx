@@ -1,6 +1,5 @@
 import React,{useMemo,useState,useEffect} from 'react';
 import {persist} from './cloud-sync.js';
-import './lumi60.css';
 const get=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}};
 const now=()=>new Date().toISOString().slice(0,10);
 const money=n=>Number(n||0).toLocaleString('ru-RU')+' ₽';

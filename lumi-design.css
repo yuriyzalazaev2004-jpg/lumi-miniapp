@@ -1,0 +1,24 @@
+/* LUMI DESIGN 2026 — one new, maintainable layer. */
+:root{--lumi-accent:#b99aff;--lumi-ink:#f8f7ff;--lumi-line:rgba(255,255,255,.11)}
+body.dark{background:#090b17!important;color:var(--lumi-ink);background-image:radial-gradient(ellipse 110% 36% at 50% -10%,rgba(111,76,202,.25),transparent 78%)!important}
+body.dark .app{background:transparent!important}
+body.dark .lumina-home{max-width:720px;padding:20px 18px 140px}
+body.dark .lumina-top{margin:14px 0 27px}
+body.dark .lumina-top h1{font-size:clamp(31px,8vw,42px);letter-spacing:-.065em}
+body.dark .lumina-overline{color:#a994da}
+body.dark .lumina-focus{background:radial-gradient(circle at 92% 14%,rgba(167,119,255,.24),transparent 49%),linear-gradient(128deg,#282046,#121528 85%)!important;border:1px solid rgba(195,163,255,.22)!important;box-shadow:0 20px 65px rgba(5,3,20,.48),inset 0 1px rgba(255,255,255,.08)!important;border-radius:30px!important;min-height:222px}
+body.dark .lumina-focus-copy>button{background:linear-gradient(110deg,#cbb4ff,#a98bf5);box-shadow:0 8px 25px #ab80f633}
+body.dark .lumina-focus-ring{box-shadow:0 0 40px #aa78ff33}
+body.dark .lumina-tool{min-height:165px;border-radius:25px!important;border:1px solid rgba(255,255,255,.10)!important;box-shadow:inset 0 1px rgba(255,255,255,.07),0 12px 35px #02030b30!important}
+body.dark .lumina-money{background:radial-gradient(circle at 90% 0%,#2b807b65,transparent 60%),linear-gradient(135deg,#1d3a42,#12202c)!important}
+body.dark .lumina-debts{background:radial-gradient(circle at 90% 0%,#ad72ba55,transparent 60%),linear-gradient(135deg,#3b2848,#201d35)!important}
+body.dark .lumina-habits{background:radial-gradient(circle at 90% 0%,#806de85c,transparent 60%),linear-gradient(135deg,#2d2854,#191b38)!important}
+body.dark .lumina-calendar{background:radial-gradient(circle at 90% 0%,#5d95d966,transparent 60%),linear-gradient(135deg,#243c5b,#171f37)!important}
+body.dark .lumina-agenda,body.dark .panel{border:1px solid rgba(255,255,255,.10);box-shadow:0 14px 38px #03040b30;border-radius:24px}
+body.dark .bottom-nav{background:rgba(16,17,33,.96)!important;border-top:1px solid rgba(186,157,250,.18)!important;backdrop-filter:blur(20px)}
+.lumi-edit-sheet .lumi-title-field{position:relative!important;z-index:3!important;pointer-events:auto!important}
+.lumi-edit-sheet .lumi-title-field input{display:block!important;position:relative!important;pointer-events:auto!important;touch-action:manipulation!important;opacity:1!important;visibility:visible!important;min-height:48px!important;width:100%!important;user-select:text!important;-webkit-user-select:text!important}
+.lumi-edit-sheet .sheet-content{touch-action:pan-y!important}
+.lumi-edit-sheet .sheet-content input,.lumi-edit-sheet .sheet-content textarea{font-size:16px!important}
+@media(max-width:400px){body.dark .lumina-home{padding-left:14px;padding-right:14px}body.dark .lumina-grid{gap:10px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
