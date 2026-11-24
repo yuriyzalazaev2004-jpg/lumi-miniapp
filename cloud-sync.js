@@ -1,15 +1,10 @@
 // LUMI: verified Telegram identity -> private Supabase Edge Function -> per-key CAS storage.
 const ENDPOINT='https://umdoukuwhnzdywytcmun.supabase.co/functions/v1/lumi-sync';
 export const DATA_KEYS=["lumi-items", "lumi-kitchen-plans-v1", "lumi-kitchen-catalog-v1", "lumi-kitchen-shopping-v1", "lumi-sport-groups-v1", "lumi-body-metrics-v1", "lumi-cycle-periods-v1", "lumi-cycle-settings-v1", "lumi-cycle-notes-v1", "lumi-cycle-confirmations-v1", "lumi-habits-v1", "lumi-goals-v1", "lumi-reminder-settings-v1", "lumi60-savings", "lumi60-limits", "lumi60-pantry", "lumi60-recipes", "lumi60-training", "lumi60-sessions", "lumi60-shared", "lumi60-challenges", "lumi60-shopping", "lumi60-programs", "lumi60-shared-drafts"];
-const tracked=new Set(DATA_KEYS);
-const read=k=>{try{return JSON.parse(localStorage.getItem(k))}catch{return null}};
 const equal=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
-const empty=x=>x==null||(Array.isArray(x)&&!x.length)||(typeof x==='object'&&!Array.isArray(x)&&!Object.keys(x).length);
-let signal=()=>{};
-const BACKGROUND_SYNC_MS=60000; // Reduce idle Edge Function usage (was 12 seconds).
-export function persist(key,value){try{localStorage.setItem(key,JSON.stringify(value));if(tracked.has(key))signal();return true}catch(e){console.error('LUMI: local save failed',e);return false}}
+const BACKGROUND_SYNC_MS = 60000;
 // Three-way merge: independent edits survive; unchanged records deleted on one device stay deleted.
-function merge(base,local,remote){
+export function merge(base,local,remote){
  if(equal(local,remote))return local;
  if(equal(local,base))return remote;
  if(equal(remote,base))return local;
@@ -28,78 +23,108 @@ function merge(base,local,remote){
   }return out;
  }
  if(local&&remote&&typeof local==='object'&&typeof remote==='object'&&!Array.isArray(local)&&!Array.isArray(remote)){
-  const out={};for(const k of new Set([...Object.keys(base&&typeof base==='object'?base:{}),...Object.keys(local),...Object.keys(remote)])){
+  const out=Object.create(null);for(const k of new Set([...Object.keys(base&&typeof base==='object'?base:{}),...Object.keys(local),...Object.keys(remote)])){
    const bv=base?.[k],lv=local[k],rv=remote[k];
-   if(!(k in local)&&equal(rv,bv))continue;
-   if(!(k in remote)&&equal(lv,bv))continue;
-   if(!(k in local)){out[k]=rv;continue}if(!(k in remote)){out[k]=lv;continue}
+   if(!Object.hasOwn(local,k)&&equal(rv,bv))continue;
+   if(!Object.hasOwn(remote,k)&&equal(lv,bv))continue;
+   if(!Object.hasOwn(local,k)){out[k]=rv;continue}if(!Object.hasOwn(remote,k)){out[k]=lv;continue}
    out[k]=merge(bv,lv,rv);
   }return out;
  }
+ if (Array.isArray(local) && Array.isArray(remote) &&
+     [...local, ...remote, ...(Array.isArray(base) ? base : [])].every(value => typeof value === 'string')) {
+  const previous = new Set(Array.isArray(base) ? base : []);
+  return [...new Set([...local, ...remote])].filter(value =>
+   !previous.has(value) || (local.includes(value) && remote.includes(value)));
+ }
  return local==null?remote:local; // simultaneous scalar edit: current device wins
 }
-export function startCloudSync(initData,userId,onStatus){
- let active=true,busy=false,ready=false,dirty=false,timeout=null,interval=null;
- let localRevision=0;
- let lastSync=0;
- const metaKey=`lumi-sync-base-${userId}`;
- let meta=read(metaKey)||{};
- const status=(s)=>{if(active)onStatus(s)};
- const api=async(action,changes)=>{
-  const response=await fetch(ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({initData,action,changes})});
-  const data=await response.json().catch(()=>({}));
-  if(!response.ok||!data.ok)throw Error(data.error||`Ошибка сервера ${response.status}`);
+export function startCloudSync(initData, userId, onStatus, storage, onChange) {
+ const metaKey = `lumi-sync-base-${userId}`;
+ const meta = storage.read(metaKey) || {};
+ const controller = new AbortController();
+ let busy = false;
+ let timeout;
+ let lastSync = 0;
+
+ async function api(action, changes) {
+  const response = await fetch(ENDPOINT, {
+   method: 'POST',
+   headers: { 'Content-Type': 'application/json' },
+   body: JSON.stringify({ initData, action, changes }),
+   signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]),
+  });
+  const data = await response.json();
+  if (!response.ok || !data.ok) throw new Error('Синхронизация недоступна');
   return data;
- };
- const flush=async()=>{
-  if(!active||busy){if(busy)dirty=true;return;}
-  if(typeof document!=='undefined'&&document.visibilityState==='hidden')return;
-  busy=true;status('syncing');let changed=false;
-  const revisionAtStart=localRevision;
-  try{
-   const snapshot=(await api('read')).records||{};
-   const updates=[];
-   for(const key of DATA_KEYS){
-    const record=snapshot[key]||{value:null,version:0};const remote=record.value;
-    const local=read(key);const previous=meta[key];
-    const base=previous?previous.value:null;
-    // On a new device, merge existing local records with the cloud, never silently discard them.
-    const combined=merge(base,local,remote);
-    if(!equal(combined,local)){
-     // A user edit during the network request must not be overwritten.
-     if(localRevision!==revisionAtStart){dirty=true;continue}
-     localStorage.setItem(key,JSON.stringify(combined));changed=true
+ }
+
+ async function flush() {
+  if (controller.signal.aborted || document.hidden) return;
+  if (busy) { schedule(); return; }
+  busy = true;
+  onStatus('syncing');
+  let changed = false;
+  try {
+   const snapshot = (await api('read')).records;
+   if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) throw new Error('Некорректный ответ');
+   for (const key of DATA_KEYS) {
+    if (controller.signal.aborted) return;
+    const reported = Object.hasOwn(snapshot, key);
+    if (!reported && meta[key]?.version > 0) continue;
+    const remote = reported ? snapshot[key] : { value: null, version: 0 };
+    if (!remote || !Number.isInteger(remote.version) || !Object.hasOwn(remote, 'value')) {
+     throw new Error('Некорректная версия данных');
     }
-    if(!equal(combined,remote))updates.push({key,value:combined,version:record.version});
-    else meta[key]={value:remote,version:record.version};
-   }
-   for(const change of updates){
-    if(localRevision!==revisionAtStart){dirty=true;break}
-    let result=await api('write',[change]);let outcome=result.results?.[change.key];
-    if(outcome?.conflict){
-     // Concurrent edits: merge against the latest server revision and retry.
-     const newest=(await api('read')).records?.[change.key]||{value:null,version:0};
-     const revised=merge(meta[change.key]?.value,read(change.key),newest.value);
-     result=await api('write',[{key:change.key,value:revised,version:newest.version}]);outcome=result.results?.[change.key];
-     if(!equal(read(change.key),revised)){localStorage.setItem(change.key,JSON.stringify(revised));changed=true}
+    const before = storage.read(key);
+    const combined = merge(meta[key]?.value ?? null, before, remote.value);
+    let version = remote.version;
+    if (!equal(combined, remote.value)) {
+     const result = (await api('write', [{ key, value: combined, version }])).results?.[key];
+     if (result?.conflict) { schedule(); throw new Error('Обновление версии'); }
+     if (!result?.ok) throw new Error('Запись отклонена');
+     version = result.version;
     }
-    if(!outcome?.ok)throw Error('Конфликт записи '+change.key);
-    meta[change.key]={value:read(change.key),version:outcome.version};
+    if (controller.signal.aborted) return;
+    const current = storage.read(key);
+    const next = equal(current, before) ? combined : merge(before, current, combined);
+    if (!equal(next, current)) { storage.write(key, next); changed = true; }
+    if (!equal(next, combined)) schedule();
+    meta[key] = { value: combined, version };
+    storage.write(metaKey, meta);
    }
-   localStorage.setItem(metaKey,JSON.stringify(meta));ready=true;lastSync=Date.now();status(dirty?'syncing':'synced');
-   // React initializes state from localStorage. Rehydrate once after remote changes.
-   if(changed&&active&&localRevision===revisionAtStart){window.location.reload();return}
-  }catch(e){console.error('LUMI sync',e);status('error: '+e.message)}
-  finally{busy=false;if(dirty&&active){dirty=false;queue()}}
- };
- const queue=()=>{if(!active)return;dirty=true;if(timeout)clearTimeout(timeout);timeout=setTimeout(()=>{dirty=false;flush()},850)};
- signal=()=>{localRevision++;if(ready)queue();else dirty=true};
+   lastSync = Date.now();
+   onStatus('synced');
+  } catch {
+   if (!controller.signal.aborted) onStatus('error');
+  } finally {
+   busy = false;
+   if (changed && !controller.signal.aborted) onChange();
+  }
+ }
+
+ function schedule() {
+  clearTimeout(timeout);
+  timeout = setTimeout(flush, 850);
+ }
+ function refresh() {
+  if (!document.hidden && Date.now() - lastSync > 5000) schedule();
+ }
+ const interval = setInterval(refresh, BACKGROUND_SYNC_MS);
+ window.addEventListener('online', schedule);
+ window.addEventListener('focus', refresh);
+ document.addEventListener('visibilitychange', refresh);
  flush();
- // A background tab does not spend quota on polling. Foreground tabs refresh at most once per minute.
- interval=setInterval(()=>{if(document.visibilityState!=='hidden'&&Date.now()-lastSync>=BACKGROUND_SYNC_MS)flush()},BACKGROUND_SYNC_MS);
- const onOnline=()=>queue();
- const onFocus=()=>{if(Date.now()-lastSync>5000)queue()};
- const onVisible=()=>{if(document.visibilityState==='visible'&&Date.now()-lastSync>5000)queue()};
- window.addEventListener('online',onOnline);window.addEventListener('focus',onFocus);document.addEventListener('visibilitychange',onVisible);
- return()=>{active=false;signal=()=>{};clearInterval(interval);clearTimeout(timeout);window.removeEventListener('online',onOnline);window.removeEventListener('focus',onFocus);document.removeEventListener('visibilitychange',onVisible)};
+
+ return {
+  schedule,
+  stop() {
+   controller.abort();
+   clearTimeout(timeout);
+   clearInterval(interval);
+   window.removeEventListener('online', schedule);
+   window.removeEventListener('focus', refresh);
+   document.removeEventListener('visibilitychange', refresh);
+  },
+ };
 }
