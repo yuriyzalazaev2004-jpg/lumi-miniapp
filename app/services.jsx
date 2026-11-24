@@ -3,7 +3,7 @@ import { Cake, ChartNoAxesColumn, ChefHat, ChevronRight, Dumbbell, Flame, Grid2X
 import { adminApi } from '../lumi-admin.js';
 import { dayLabel, doneOn, keys, kindOf, list, money, occurrence, repeats, shift, when } from './model.js';
 import { field, required } from './records.js';
-import { Add, Heading, Rows, Section, Tabs } from './ui.jsx';
+import { Add, Heading, Ring, Rows, Section, Tabs } from './ui.jsx';
 
 export const services = {
   kitchen: ['Моя кухня', ChefHat, 'Запасы, рецепты и меню'],
@@ -21,7 +21,7 @@ const recordKinds = { sport: 'sport', birthday: 'birthday', debts: 'debt', subsc
 export function Directory({ navigate }) {
   return <div className="flow"><Heading title="Сервисы" subtitle="Организуйте важное" icon={Grid2X2}/>
     <div className="service-grid">{Object.entries(services).map(([page, [title, Icon, description]]) =>
-      <button className="card service" key={page} onClick={() => navigate(page)}><span className="glyph"><Icon size={20}/></span>
+      <button className="card service" data-service={page} key={page} onClick={() => navigate(page)}><span className="glyph"><Icon size={20}/></span>
         <strong>{title}</strong><small>{description}</small><ChevronRight className="service-arrow" size={16}/></button>)}</div>
   </div>;
 }
@@ -44,6 +44,7 @@ export function Journal({ page, items, actions, store, today }) {
   }
   const isRecurring = kind === 'subscription' || kind === 'birthday';
   if (isRecurring) rows.sort((a, b) => (upcoming(a) || '9999').localeCompare(upcoming(b) || '9999'));
+  const nearest = isRecurring ? rows.find(upcoming) : null;
   const detail = row => [
     dayLabel(isRecurring ? upcoming(row) || row.date : row.date),
     row.time, kind === 'sport' && (row.minutes || row.duration) ? (row.minutes || row.duration) + ' мин' : '',
@@ -52,11 +53,16 @@ export function Journal({ page, items, actions, store, today }) {
   ].filter(Boolean).join(' · ');
   const addLabels = { sport: 'Тренировка', subscription: 'Платёж', debt: 'Долг', birthday: 'День рождения' };
   return <div className="flow"><Heading title={title} subtitle={subtitle} icon={Icon}/>
-    {kind === 'debt' && <div className="hero finance-hero"><small>Остаток по долгам</small>
-      <strong>{money(rows.reduce((sum, row) => sum + balance(row), 0))}</strong></div>}
+    <div className="hero journal-cover"><div>
+      <small>{{sport: 'Всего тренировок', birthday: 'Ближайший день рождения', subscription: 'Ближайший платёж', debt: 'Остаток по долгам'}[kind]}</small>
+      <h2>{kind === 'debt' ? money(rows.reduce((sum, row) => sum + balance(row), 0))
+        : kind === 'sport' ? rows.length : nearest?.title || 'Пока нет записей'}</h2>
+      {nearest && <p>{dayLabel(upcoming(nearest))}</p>}
+    </div><span className="journal-emblem"><Icon size={30}/></span></div>
     <Section title="Записи" action={<Add onClick={() => actions.item(kind)}>{addLabels[kind]}</Add>}>
       <Rows rows={kind === 'subscription' ? rows.map(row => ({ ...row, done: Boolean(doneOn(row, upcoming(row) || row.date)) })) : rows}
-        {...actions.itemRows} detail={detail} toggle={kind === 'subscription' ? markPayment : undefined}
+        {...actions.itemRows} leading={kind !== 'subscription' ? () => <span className="row-mark"><Icon size={15}/></span> : undefined}
+        detail={detail} toggle={kind === 'subscription' ? markPayment : undefined}
         amount={kind === 'debt' ? row => money(balance(row)) : kind === 'subscription' ? row => money(row.amount) : undefined}/>
     </Section>
   </div>;
@@ -107,7 +113,7 @@ export function Profile({ theme, changeTheme, auth, sync, reminderStatus, remind
       } });
   }
   return <div className="flow"><Heading title="Профиль" subtitle="Настройки LUMI" icon={UserRound}/>
-    <section className="card achievement"><span className="glyph"><UserRound size={22}/></span><span>
+    <section className="card profile-cover"><span className="avatar-chip">{auth.user?.first_name?.slice(0, 1) || <UserRound size={28}/>}</span><span>
       <strong>{auth.user?.first_name || 'Гость'}</strong><small>{verified ? 'Вход через Telegram подтверждён' : 'Данные хранятся на этом устройстве'}</small>
     </span></section>
     <Section className="card" title="Оформление"><Tabs options={[[ 'dark', 'Тёмная'], ['light', 'Светлая'], ['system', 'Системная']]}
@@ -134,14 +140,23 @@ export function Activity({ items, habits, goals, today }) {
   const rows = items.filter(row => row.date >= start && row.date <= today);
   const tasks = rows.filter(row => kindOf(row) === 'task');
   const workouts = rows.filter(row => kindOf(row) === 'sport');
+  const taskCount = tasks.filter(row => row.done).length;
+  const days = Array.from({ length: period === 'week' ? 7 : 30 }, (_, index) => shift(start, index));
+  const activity = days.map(date => ({ date, count: rows.filter(row => row.date === date && (row.done || kindOf(row) === 'sport')).length +
+    habits.filter(row => row.dates?.includes(date)).length }));
+  const maximum = Math.max(1, ...activity.map(day => day.count));
   const counts = [
-    ['Задач выполнено', tasks.filter(row => row.done).length + ' / ' + tasks.length],
     ['Отметок привычек', habits.reduce((sum, habit) => sum + (habit.dates || []).filter(day => day >= start && day <= today).length, 0)],
     ['Тренировок', workouts.length],
     ['Целей достигнуто всего', goals.filter(goal => goal.target > 0 && Number(goal.amount) >= Number(goal.target)).length],
   ];
   return <div className="flow"><Heading title="Аналитика" subtitle="Активность и цели" icon={ChartNoAxesColumn}/>
     <Tabs options={[[ 'week', 'Неделя'], ['month', 'Месяц']]} value={period} onChange={setPeriod} label="Период активности"/>
+    <div className="card habit-summary"><div><small>Задачи за период</small><h2>{taskCount} из {tasks.length}</h2></div>
+      <Ring value={tasks.length ? Math.round(100 * taskCount / tasks.length) : 0}/></div>
+    <Section title="Активность по дням" className="card"><div className="habit-bars activity-bars">{activity.map(({date, count}) =>
+      <div key={date} title={dayLabel(date) + ' · ' + count}><i style={{'--bar': 100 * count / maximum + '%'}}/>
+        {period === 'week' && <small>{date.slice(-2)}</small>}</div>)}</div></Section>
     <div className="split metrics">{counts.map(([label, value]) => <div className="card" key={label}><small>{label}</small><strong>{value}</strong></div>)}</div>
   </div>;
 }
