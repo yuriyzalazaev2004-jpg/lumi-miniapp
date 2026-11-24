@@ -1,60 +1,167 @@
-import React,{useEffect,useMemo,useState} from 'react';
-import{createRoot}from'react-dom/client';
-import{House,CalendarDays,Wallet,Grid2X2,UserRound,Plus,ArrowUpRight,ArrowDownLeft,Check,ChevronLeft,ChevronRight,X,Trash2,Pencil,Sun,Moon,Target,Flame,ShoppingBasket,Dumbbell,Cake,HandCoins,Repeat2,ChartNoAxesColumn,Search,ShieldCheck,Cloud,CloudOff,Settings,Heart,Clock3,CheckCircle2,ArrowRight}from'lucide-react';
-import{persist,startCloudSync}from'./cloud-sync.js';
+import React, { useEffect, useMemo, useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import { ArrowLeft, CalendarDays, Cloud, CloudOff, Grid2X2, House, Moon, Sparkles, Sun, UserRound, Wallet } from 'lucide-react';
+import { dayKey, keys, list } from './app/model.js';
+import { openStorage, readLocal } from './app/storage.js';
+import { actions as recordActions, categories } from './app/records.js';
+import { Dialog, Editor, IconButton } from './app/ui.jsx';
+import { Home, Planner } from './app/planner.jsx';
+import Finance from './app/finance.jsx';
+import Kitchen from './app/kitchen.jsx';
+import { Cycle, Goals, Habits } from './app/wellbeing.jsx';
+import { Activity, defaultReminder, Directory, Journal, Profile, services, syncText, useReminders } from './app/services.jsx';
 import './app.css';
-const AUTH='https://umdoukuwhnzdywytcmun.supabase.co/functions/v1/telegram-auth';
-const dateKey=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-const today=()=>dateKey(new Date());
-const fmt=(v)=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(Number(v)||0)+' ₽';
-const dateText=d=>new Date(d+'T12:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'long'});
-const read=(k,f)=>{try{return JSON.parse(localStorage.getItem(k))??f}catch{return f}};
-const id=()=>crypto.randomUUID?.()||String(Date.now()+Math.random());
-const NAV=[['home','Главная',House],['calendar','План',CalendarDays],['finance','Финансы',Wallet],['services','Сервисы',Grid2X2],['profile','Профиль',UserRound]];
-const SERVICES=[['debts','Долги',HandCoins,'mint'],['habits','Привычки',Flame,'violet'],['goals','Цели',Target,'yellow'],['kitchen','Кухня',ShoppingBasket,'orange'],['sport','Спорт',Dumbbell,'blue'],['birthday','Дни рождения',Cake,'pink'],['subscriptions','Платежи',Repeat2,'violet'],['stats','Аналитика',ChartNoAxesColumn,'mint']];
-const TYPES={task:'Задача',income:'Доход',expense:'Расход',debt:'Долг',birthday:'День рождения',subscription:'Платёж',sport:'Тренировка',kitchen:'Продукт'};
-const empty=(kind='task',date=today())=>({title:'',type:kind==='income'||kind==='expense'||kind==='debt'||kind==='subscription'?'finance':kind==='kitchen'?'kitchen':kind==='sport'?'sport':kind==='birthday'?'birthday':'general',kind,amount:'',paid:'',date,notes:'',counterparty:'',done:false});
-function App(){
- const tg=window.Telegram?.WebApp;
- const [auth,setAuth]=useState({status:'checking',user:null});const [sync,setSync]=useState('local');
- const [theme,setTheme]=useState(()=>read('lumi-theme','dark'));const [page,setPage]=useState('home');const [selectedDate,setSelectedDate]=useState(today());
- const [items,setItems]=useState(()=>read('lumi-items',[]));const [habits,setHabits]=useState(()=>read('lumi-habits-v1',[]));const [goals,setGoals]=useState(()=>read('lumi-goals-v1',[]));
- const [shopping,setShopping]=useState(()=>read('lumi-kitchen-shopping-v1',[]));const [form,setForm]=useState(null);const [edit,setEdit]=useState(null);const [error,setError]=useState('');const [filter,setFilter]=useState('all');
- useEffect(()=>{tg?.ready();tg?.expand();if(!tg?.initData){setAuth({status:'unavailable',user:null});return}let alive=true;fetch(AUTH,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({initData:tg.initData})}).then(async r=>{const j=await r.json();if(!r.ok||!j.success||!j.user?.id)throw Error('Auth');if(alive)setAuth({status:'verified',user:j.user})}).catch(()=>{if(alive)setAuth({status:'failed',user:null})});return()=>{alive=false}},[]);
- useEffect(()=>{if(auth.status!=='verified'||!tg?.initData)return;return startCloudSync(tg.initData,auth.user.id,setSync)},[auth.status,auth.user?.id]);
- useEffect(()=>{document.documentElement.dataset.theme=theme;persist('lumi-theme',theme)},[theme]);
- const saveItems=next=>{if(!persist('lumi-items',next)){setError('Не удалось записать данные на устройство');return false}setItems(next);return true};
- const saveHabits=next=>{if(persist('lumi-habits-v1',next))setHabits(next);else setError('Не удалось сохранить привычки')};
- const saveGoals=next=>{if(persist('lumi-goals-v1',next))setGoals(next);else setError('Не удалось сохранить цели')};
- const saveShopping=next=>{if(persist('lumi-kitchen-shopping-v1',next))setShopping(next);else setError('Не удалось сохранить список')};
- const open=(kind='task',record=null)=>{setEdit(record?.id||null);setForm(record?{...record}:empty(kind,selectedDate));setError('')};
- const submit=e=>{e.preventDefault();const title=String(form.title||'').trim();if(!title){setError('Введите название');return}const amount=Number(String(form.amount||0).replace(',','.'));const paid=Number(String(form.paid||0).replace(',','.'));if(['income','expense','debt','subscription'].includes(form.kind)&&(!Number.isFinite(amount)||amount<=0)){setError('Введите сумму больше нуля');return}if(form.kind==='debt'&&(!Number.isFinite(paid)||paid<0||paid>amount)){setError('Погашено должно быть от 0 до суммы долга');return}const item={...form,title,amount,paid,id:edit||id(),createdAt:form.createdAt||today()};if(saveItems(edit?items.map(x=>x.id===edit?item:x):[item,...items])){setForm(null);setEdit(null)}};
- const remove=x=>{if(window.confirm('Удалить «'+x.title+'»?'))saveItems(items.filter(i=>i.id!==x.id))};
- const toggle=x=>saveItems(items.map(i=>i.id===x.id?{...i,done:!i.done}:i));
- const debts=items.filter(i=>i.kind==='debt'||(i.type==='finance'&&i.kind==='debt'));
- const incomes=items.filter(i=>i.kind==='income').reduce((s,i)=>s+Number(i.amount||0),0),expenses=items.filter(i=>i.kind==='expense').reduce((s,i)=>s+Number(i.amount||0),0);
- const pending=items.filter(i=>!i.done&&i.kind==='task');const dayItems=items.filter(i=>i.date===selectedDate);
- const doneToday=habits.filter(h=>(h.dates||[]).includes(today())).length;
- const nav=p=>{setPage(p);setFilter('all');window.scrollTo({top:0,behavior:'smooth'})};
- const headline={home:'Главная',calendar:'Мой план',finance:'Финансы',services:'Все сервисы',profile:'Профиль',debts:'Мои долги',habits:'Привычки',goals:'Мои цели',kitchen:'Моя кухня',sport:'Спорт',birthday:'Дни рождения',subscriptions:'Регулярные платежи',stats:'Аналитика'};
- const itemRow=(x)=><div className="item" key={x.id}><button className={'check '+(x.done?'checked':'')} onClick={()=>toggle(x)} aria-label="Выполнено"><Check size={15}/></button><div className="item-info"><strong>{x.title}</strong><span>{TYPES[x.kind]||'Запись'} · {x.date?dateText(x.date):'Без даты'}{x.kind==='debt'?' · погашено '+fmt(x.paid):''}</span></div>{Number(x.amount)>0&&<b className="amount">{fmt(x.amount)}</b>}<button className="icon-btn subtle" onClick={()=>open(x.kind,x)} aria-label="Редактировать"><Pencil size={16}/></button><button className="icon-btn subtle" onClick={()=>remove(x)} aria-label="Удалить"><Trash2 size={16}/></button></div>;
- const addButton=(kind,label='Добавить')=><button className="primary" onClick={()=>open(kind)}><Plus size={18}/>{label}</button>;
- return <div className="shell"><div className="topbar"><button className="brand" onClick={()=>nav('home')}>LUMI<span className="brand-star">✦</span></button><div className="top-actions"><span className={'sync '+(sync==='synced'?'online':'')} title={sync}>{sync==='synced'?<Cloud size={15}/>:<CloudOff size={15}/>}</span><button className="icon-btn" onClick={()=>setTheme(theme==='dark'?'light':'dark')} aria-label="Сменить тему">{theme==='dark'?<Sun size={19}/>:<Moon size={19}/>}</button></div></div>
- <main>
- {page==='home'&&<><div className="welcome"><div className="eyebrow">{new Date().toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'}).toUpperCase()}</div><h1>Привет, {auth.user?.first_name||tg?.initDataUnsafe?.user?.first_name||'друг'} <span className="violet-text">✦</span></h1><p>Твой день. Твои правила.</p></div><div className="home-summary"><div className="summary-top"><div><span className="eyebrow">ТВОЙ ПЛАН</span><h2>{pending.length} задач на сегодня</h2><p>{items.filter(i=>i.kind==='task'&&i.done).length} выполнено за всё время</p></div><div className="mini-ring"><strong>{items.filter(i=>i.kind==='task').length?Math.round(items.filter(i=>i.kind==='task'&&i.done).length/items.filter(i=>i.kind==='task').length*100):0}%</strong></div></div><button className="outline-action" onClick={()=>nav('calendar')}>Открыть расписание <ArrowUpRight size={17}/></button></div><div className="section-head"><h2>Обзор</h2><button className="text-link" onClick={()=>nav('services')}>Все разделы <ArrowRight size={16}/></button></div><div className="dashboard-grid"><button className="dash-tile tile-finance" onClick={()=>nav('finance')}><Wallet size={21}/><small>Финансы</small><strong>{fmt(incomes-expenses)}</strong><span>Баланс</span></button><button className="dash-tile tile-habits" onClick={()=>nav('habits')}><Flame size={21}/><small>Привычки</small><strong>{doneToday} / {habits.length}</strong><span>Выполнено сегодня</span></button><button className="dash-tile tile-debts" onClick={()=>nav('debts')}><HandCoins size={21}/><small>Долги</small><strong>{fmt(debts.reduce((a,x)=>a+Math.max(0,Number(x.amount||0)-Number(x.paid||0)),0))}</strong><span>Осталось вернуть</span></button><button className="dash-tile tile-goals" onClick={()=>nav('goals')}><Target size={21}/><small>Цели</small><strong>{goals.length}</strong><span>Активных целей</span></button></div><div className="section-head"><h2>Ближайшие задачи</h2><button className="text-link" onClick={()=>open('task')}>Добавить <Plus size={16}/></button></div><div className="panel task-list">{pending.slice(0,4).length?pending.slice(0,4).map(itemRow):<div className="empty">Здесь появятся твои задачи. <button className="inline-action" onClick={()=>open('task')}>Создать первую</button></div>}</div></>}
- {page==='calendar'&&<><div className="page-title"><span className="eyebrow">ТВОЁ РАСПИСАНИЕ</span><h1>Календарь<span className="violet-text">.</span></h1></div><div className="calendar-board"><div className="date-header"><button className="icon-btn" onClick={()=>{const d=new Date(selectedDate+'T12:00:00');d.setDate(d.getDate()-7);setSelectedDate(dateKey(d))}}><ChevronLeft/></button><strong>{dateText(selectedDate)}</strong><button className="icon-btn" onClick={()=>{const d=new Date(selectedDate+'T12:00:00');d.setDate(d.getDate()+7);setSelectedDate(dateKey(d))}}><ChevronRight/></button></div><div className="week">{Array.from({length:7},(_,i)=>{const d=new Date(selectedDate+'T12:00:00');const wd=(d.getDay()+6)%7;d.setDate(d.getDate()-wd+i);const v=dateKey(d);return <button className={v===selectedDate?'active':''} key={v} onClick={()=>setSelectedDate(v)}><span>{d.toLocaleDateString('ru-RU',{weekday:'short'})}</span><b>{d.getDate()}</b><i className={items.some(x=>x.date===v)?'has-event':''}/></button>})}</div><label className="date-field">Перейти к дате <input type="date" value={selectedDate} onChange={e=>setSelectedDate(e.target.value)}/></label></div><div className="section-head"><h2>План на день</h2>{addButton('task','Добавить')}</div><div className="timeline">{dayItems.length?dayItems.map((x,i)=><div className="timeline-entry" key={x.id}><span className="time-marker">{String(9+i*2).padStart(2,'0')}:00</span><div className="timeline-card"><span className="timeline-accent"/><div className="timeline-main">{itemRow(x)}</div></div></div>):<div className="timeline-entry"><span className="time-marker">09:00</span><div className="timeline-card vacant"><span>Свободное время</span><button onClick={()=>open('task')}>+ Запланировать событие</button></div></div>}</div></>}
- {page==='finance'&&<><div className="page-title"><span className="eyebrow">ДЕНЬГИ ПОД КОНТРОЛЕМ</span><h1>Финансы<span className="violet-text">.</span></h1></div><div className="finance-overview"><span className="eyebrow">ОБЩИЙ БАЛАНС</span><h2>{fmt(incomes-expenses)}</h2><div className="finance-metrics"><div><span>Доходы</span><strong className="mint-text">+{fmt(incomes)}</strong></div><div><span>Расходы</span><strong className="rose-text">−{fmt(expenses)}</strong></div></div></div><div className="button-row finance-actions">{addButton('income','+ Доход')}{addButton('expense','− Расход')}</div><div className="section-head"><h2>Твои деньги</h2></div><div className="finance-links"><button className="finance-link goal-link" onClick={()=>nav('goals')}><Target size={25}/><span><strong>Цели и накопления</strong><small>{goals.length} целей</small></span><ArrowUpRight size={17}/></button><button className="finance-link debt-link" onClick={()=>nav('debts')}><HandCoins size={25}/><span><strong>Мои долги</strong><small>{debts.length} записей</small></span><ArrowUpRight size={17}/></button></div><div className="section-head"><h2>История операций</h2></div><div className="panel">{items.filter(i=>['income','expense'].includes(i.kind)).length?items.filter(i=>['income','expense'].includes(i.kind)).map(itemRow):<div className="empty">Операций пока нет. Добавь первую.</div>}</div></>}
- {page==='services'&&<><div className="page-title"><span className="eyebrow">ВСЁ В ОДНОМ МЕСТЕ</span><h1>Сервисы<span className="dot">.</span></h1></div><div className="services-grid">{SERVICES.map(([key,label,Icon,tone])=><button key={key} className={'service '+tone} onClick={()=>nav(key)}><span className="service-icon"><Icon size={24}/></span><strong>{label}</strong><ArrowUpRight size={17}/></button>)}</div></>}
- {page==='debts'&&<><div className="page-title"><span className="eyebrow">ВСЁ ПОД КОНТРОЛЕМ</span><h1>Мои долги<span className="dot">.</span></h1></div><div className="metric-panel"><span>Осталось погасить</span><strong>{fmt(debts.reduce((s,x)=>s+Math.max(0,Number(x.amount||0)-Number(x.paid||0)),0))}</strong><small>{debts.length} записей</small></div><div className="section-head"><h2>Список долгов</h2>{addButton('debt','Новый долг')}</div><div className="panel">{debts.length?debts.map(x=><div className="debt-entry" key={x.id}><div className="debt-head"><strong>{x.title}</strong><span>{fmt(Math.max(0,Number(x.amount||0)-Number(x.paid||0)))}</span></div><div className="progress"><i style={{width:`${Math.min(100,Math.round(Number(x.paid||0)/Math.max(1,Number(x.amount))*100))}%`}}/></div><div className="debt-foot"><small>Погашено {fmt(x.paid)} из {fmt(x.amount)}</small><div><button className="mini" onClick={()=>{const value=window.prompt('Сколько погасили дополнительно?', '');if(value===null)return;const n=Number(value.replace(',','.'));if(!Number.isFinite(n)||n<=0){setError('Введите сумму больше нуля');return}saveItems(items.map(i=>i.id===x.id?{...i,paid:Math.min(Number(i.amount),Number(i.paid||0)+n)}:i))}}>Погасить</button><button className="icon-btn" onClick={()=>open('debt',x)}><Pencil size={16}/></button><button className="icon-btn" onClick={()=>remove(x)}><Trash2 size={16}/></button></div></div></div>):<div className="empty">Долгов пока нет. Добавь запись, чтобы отслеживать погашение.</div>}</div></>}
- {page==='habits'&&<><div className="page-title"><span className="eyebrow">ТВОЯ ДИСЦИПЛИНА</span><h1>Привычки<span className="violet-text">.</span></h1></div><div className="habit-overview"><div className="habit-ring" style={{'--habit-percent':habits.length?Math.round(doneToday/habits.length*100):0}}><div><strong>{habits.length?Math.round(doneToday/habits.length*100):0}%</strong><small>сегодня</small></div></div><div><span className="eyebrow">СЕГОДНЯ</span><h2>{doneToday} из {habits.length}</h2><p>Выполнено привычек</p></div></div><div className="section-head"><h2>Последние 7 дней</h2></div><div className="habit-week">{Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-6+i);const day=dateKey(d);const count=habits.filter(h=>(h.dates||[]).includes(day)).length;return <div key={day}><div className="habit-bar"><i style={{height:`${Math.max(8,habits.length?count/habits.length*100:8)}%`}}/></div><small>{d.toLocaleDateString('ru-RU',{weekday:'short'})}</small></div>})}</div><div className="section-head"><h2>Мои привычки</h2><button className="primary" onClick={()=>{const title=window.prompt('Название новой привычки');if(title?.trim())saveHabits([{id:id(),title:title.trim(),dates:[]},...habits])}}><Plus size={17}/> Добавить</button></div><div className="habit-list">{habits.length?habits.map(h=><div className="habit-card" key={h.id}><div className="habit-card-top"><span className="habit-emoji">✦</span><div><strong>{h.title}</strong><small>{(h.dates||[]).length} выполнений</small></div><button className={'habit-toggle '+((h.dates||[]).includes(today())?'is-done':'')} onClick={()=>saveHabits(habits.map(x=>x.id===h.id?{...x,dates:(x.dates||[]).includes(today())?x.dates.filter(d=>d!==today()):[...(x.dates||[]),today()]}:x))}><Check size={20}/></button><button className="icon-btn subtle" onClick={()=>saveHabits(habits.filter(x=>x.id!==h.id))}><Trash2 size={16}/></button></div><div className="habit-dots">{Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-6+i);return <span className={(h.dates||[]).includes(dateKey(d))?'on':''} key={i}>{(h.dates||[]).includes(dateKey(d))?'✓':''}</span>})}</div></div>):<div className="panel empty">Добавь первую привычку — здесь появятся прогресс и история.</div>}</div></>}
- {page==='goals'&&<><div className="page-title"><span className="eyebrow">ДВИЖЕНИЕ ВПЕРЁД</span><h1>Мои цели<span className="dot">.</span></h1></div><div className="section-head"><h2>Цели и накопления</h2><button className="primary" onClick={()=>{const title=window.prompt('Название цели');if(!title?.trim())return;const target=Number(window.prompt('Сумма цели, ₽','10000'));if(!Number.isFinite(target)||target<=0)return;saveGoals([{id:id(),title:title.trim(),target,amount:0},...goals])}}><Plus size={17}/> Добавить</button></div><div className="panel">{goals.length?goals.map(g=><div className="debt-entry" key={g.id}><div className="debt-head"><strong>{g.title}</strong><span>{fmt(g.amount||0)} / {fmt(g.target||0)}</span></div><div className="progress"><i style={{width:`${Math.min(100,Number(g.amount||0)/Math.max(1,Number(g.target||1))*100)}%`}}/></div><div className="debt-foot"><small>{Math.round(Number(g.amount||0)/Math.max(1,Number(g.target||1))*100)}% цели</small><div><button className="mini" onClick={()=>{const n=Number(window.prompt('Пополнить на сумму, ₽',''));if(n>0)saveGoals(goals.map(x=>x.id===g.id?{...x,amount:Number(x.amount||0)+n}:x))}}>Пополнить</button><button className="icon-btn" onClick={()=>saveGoals(goals.filter(x=>x.id!==g.id))}><Trash2 size={16}/></button></div></div></div>):<div className="empty">Поставь первую цель.</div>}</div></>}
- {page==='kitchen'&&<><div className="page-title"><span className="eyebrow">ПЛАНИРУЙ ПОКУПКИ</span><h1>Моя кухня<span className="dot">.</span></h1></div><div className="section-head"><h2>Список покупок</h2><button className="primary" onClick={()=>{const title=window.prompt('Что купить?');if(title?.trim())saveShopping([{id:id(),title:title.trim(),done:false},...shopping])}}><Plus size={17}/> Добавить</button></div><div className="panel">{shopping.length?shopping.map(x=><div className="item" key={x.id}><button className={'check '+(x.done?'checked':'')} onClick={()=>saveShopping(shopping.map(i=>i.id===x.id?{...i,done:!i.done}:i))}><Check size={15}/></button><div className="item-info"><strong>{x.title||x.name||'Продукт'}</strong></div><button className="icon-btn" onClick={()=>saveShopping(shopping.filter(i=>i.id!==x.id))}><Trash2 size={16}/></button></div>):<div className="empty">Список покупок пуст.</div>}</div><p className="footnote">Расширенные рецепты и учёт холодильника пока не перенесены в новую версию.</p></>}
- {['sport','birthday','subscriptions'].includes(page)&&<><div className="page-title"><span className="eyebrow">ТВОИ ПЛАНЫ</span><h1>{headline[page]}<span className="dot">.</span></h1></div><div className="section-head"><h2>Мои записи</h2>{addButton(page==='subscriptions'?'subscription':page,'Добавить')}</div><div className="panel">{items.filter(i=>i.kind===(page==='subscriptions'?'subscription':page)).length?items.filter(i=>i.kind===(page==='subscriptions'?'subscription':page)).map(itemRow):<div className="empty">Здесь пока нет записей.</div>}</div></>}
- {page==='stats'&&<><div className="page-title"><span className="eyebrow">ТВОИ РЕЗУЛЬТАТЫ</span><h1>Аналитика<span className="dot">.</span></h1></div><div className="stats-grid"><div className="stat"><span>Всего записей</span><strong>{items.length}</strong></div><div className="stat"><span>Задач выполнено</span><strong>{items.filter(i=>i.kind==='task'&&i.done).length}</strong></div><div className="stat"><span>Привычек сегодня</span><strong>{doneToday}</strong></div><div className="stat"><span>Целей</span><strong>{goals.length}</strong></div></div></>}
- {page==='profile'&&<><div className="page-title"><span className="eyebrow">ТВОЙ LUMI</span><h1>Профиль<span className="dot">.</span></h1></div><div className="profile-card"><div className="avatar">{(auth.user?.first_name||'L').slice(0,1)}</div><div><strong>{auth.user?.first_name||'Гость'}</strong><span>{auth.status==='verified'?'Telegram подключён':'Локальный режим'}</span></div></div><div className="panel settings"><div><ShieldCheck size={19}/><span>Авторизация</span><strong>{auth.status==='verified'?'Подтверждена':auth.status==='checking'?'Проверка…':'Нет подключения'}</strong></div><div><Cloud size={19}/><span>Синхронизация</span><strong>{sync==='synced'?'Синхронизировано':sync==='syncing'?'Синхронизация…':sync.startsWith('error')?'Ошибка':'Локально'}</strong></div><button onClick={()=>setTheme(theme==='dark'?'light':'dark')}><Settings size={19}/><span>Тема оформления</span><strong>{theme==='dark'?'Тёмная':'Светлая'}</strong></button></div><p className="footnote">Записи сохраняются на устройстве сразу. Облачная синхронизация доступна только после подтверждения Telegram и зависит от настройки Edge Function.</p></>}
- </main><nav className="bottom-nav">{NAV.map(([key,label,Icon])=><button key={key} className={page===key||(key==='services'&&SERVICES.some(s=>s[0]===page))?'active':''} onClick={()=>nav(key)}><Icon size={21}/><span>{label}</span></button>)}</nav>
- {form&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setForm(null)}}><form className="sheet" onSubmit={submit}><div className="sheet-head"><div><span className="eyebrow">НОВАЯ ЗАПИСЬ</span><h2>{edit?'Изменить':'Добавить'} · {TYPES[form.kind]||'Задача'}</h2></div><button className="icon-btn" type="button" onClick={()=>setForm(null)}><X/></button></div><div className="sheet-body"><label>Название<input value={form.title||''} onChange={e=>setForm(f=>({...f,title:e.target.value}))} placeholder="Например, долг за ремонт" required maxLength={150}/></label>{['income','expense','debt','subscription'].includes(form.kind)&&<label>Сумма, ₽<input inputMode="decimal" type="number" min="0.01" step="0.01" value={form.amount??''} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} placeholder="0" required/></label>}{form.kind==='debt'&&<><label>Уже погашено, ₽<input inputMode="decimal" type="number" min="0" step="0.01" value={form.paid??''} onChange={e=>setForm(f=>({...f,paid:e.target.value}))} placeholder="0"/></label><label>Кому должен<input value={form.counterparty||''} onChange={e=>setForm(f=>({...f,counterparty:e.target.value}))} placeholder="Человек, банк, МФО"/></label></>}<label>Дата<input type="date" value={form.date||today()} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/></label><label>Заметка<textarea rows="3" value={form.notes||''} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} placeholder="Дополнительная информация"/></label>{error&&<p className="form-error">{error}</p>}</div><div className="sheet-footer"><button type="button" className="secondary" onClick={()=>setForm(null)}>Отмена</button><button type="submit" className="primary save"><Check size={18}/> {edit?'Сохранить изменения':form.kind==='debt'?'Сохранить долг':'Сохранить'}</button></div></form></div>}
- {error&&!form&&<div className="toast" onClick={()=>setError('')}>{error} <X size={16}/></div>}
- </div>
+
+const AUTH = 'https://umdoukuwhnzdywytcmun.supabase.co/functions/v1/telegram-auth';
+const NAV = [['home', 'Главная', House], ['calendar', 'Мой день', CalendarDays], ['finance', 'Финансы', Wallet],
+  ['services', 'Сервисы', Grid2X2], ['profile', 'Профиль', UserRound]];
+
+function useTheme(tg) {
+  const [theme, setTheme] = useState(() => readLocal('lumi-theme', 'system'));
+  const [system, setSystem] = useState(() => tg?.colorScheme || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'));
+  const resolved = theme === 'system' ? system : theme === 'light' ? 'light' : 'dark';
+  useEffect(() => {
+    const query = matchMedia('(prefers-color-scheme: light)');
+    const refresh = () => setSystem(tg?.colorScheme || (query.matches ? 'light' : 'dark'));
+    query.addEventListener('change', refresh);
+    tg?.onEvent?.('themeChanged', refresh);
+    return () => { query.removeEventListener('change', refresh); tg?.offEvent?.('themeChanged', refresh); };
+  }, [tg]);
+  useEffect(() => {
+    document.documentElement.dataset.theme = resolved;
+    document.documentElement.style.colorScheme = resolved;
+    const color = getComputedStyle(document.documentElement).getPropertyValue('--background').trim();
+    document.querySelector('meta[name="theme-color"]').content = color;
+    for (const method of ['setHeaderColor', 'setBackgroundColor', 'setBottomBarColor']) {
+      try { tg?.[method]?.(color); } catch { /* Older Telegram versions. */ }
+    }
+  }, [resolved, tg]);
+  const change = value => {
+    try { localStorage.setItem('lumi-theme', JSON.stringify(value)); } catch { /* Theme is still applied in RAM. */ }
+    setTheme(value);
+  };
+  return [theme, resolved, change];
 }
-createRoot(document.getElementById('root')).render(<App/>);
+
+function Root() {
+  const tg = window.Telegram?.WebApp;
+  const [auth, setAuth] = useState(() => ({ status: tg?.initData ? 'checking' : 'local' }));
+  const [retry, setRetry] = useState(0);
+  const [theme, resolved, changeTheme] = useTheme(tg);
+  useEffect(() => {
+    tg?.ready?.();
+    tg?.expand?.();
+    if (!tg?.initData) return;
+    const controller = new AbortController();
+    fetch(AUTH, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg.initData }),
+      signal: AbortSignal.any([controller.signal, AbortSignal.timeout(12000)]),
+    }).then(async response => {
+      const value = await response.json();
+      if (!response.ok || !value.success || !/^\d+$/.test(String(value.user?.id))) throw new Error('Auth');
+      if (!controller.signal.aborted) setAuth({ status: 'verified', user: value.user });
+    }).catch(() => {
+      if (!controller.signal.aborted) setAuth({ status: 'failed' });
+    });
+    return () => controller.abort();
+  }, [retry, tg]);
+
+  if (auth.status === 'checking' || auth.status === 'failed') return <div className="shell auth-screen">
+    <div className="card"><span className="glyph"><Sparkles size={22}/></span><h1>LUMI</h1>
+      <p role="status">{auth.status === 'checking' ? 'Проверяем вход через Telegram…' : 'Не удалось подтвердить вход через Telegram.'}</p>
+      {auth.status === 'failed' && <button className="primary" onClick={() => {
+        setAuth({ status: 'checking' }); setRetry(value => value + 1);
+      }}>Повторить</button>}</div>
+  </div>;
+  return <App key={auth.user?.id || 'guest'} {...{ auth, tg, theme, resolved, changeTheme }}/>;
+}
+
+function App({ auth, tg, theme, resolved, changeTheme }) {
+  const owner = auth.user?.id ? String(auth.user.id) : 'guest';
+  const store = useMemo(() => openStorage(owner), [owner]);
+  const [sync, setSync] = useState(owner === 'guest' ? 'local' : 'loading');
+  const [, refresh] = useState(0);
+  const [page, setPage] = useState('home');
+  const [today, setToday] = useState(dayKey);
+  const [selected, setSelected] = useState(dayKey);
+  const [editor, setEditor] = useState(null);
+  const [error, setError] = useState('');
+  const [importOpen, setImportOpen] = useState(() => store.canImport());
+  const actions = recordActions(store, setEditor, setError);
+
+  useEffect(() => store.subscribe(() => refresh(value => value + 1)), [store]);
+  useEffect(() => {
+    if (auth.status === 'verified' && tg?.initData) return store.connect(tg.initData, setSync);
+  }, [auth.status, store, tg]);
+  useEffect(() => {
+    const clock = setInterval(() => setToday(dayKey()), 30000);
+    return () => clearInterval(clock);
+  }, []);
+
+  function navigate(next) {
+    if (next === 'calendar' && page === 'home') setSelected(today);
+    setPage(next);
+    window.scrollTo(0, 0);
+  }
+  useEffect(() => {
+    const back = tg?.BackButton;
+    if (!back) return;
+    const goBack = () => editor ? setEditor(null) : navigate(services[page] ? 'services' : 'home');
+    if (page !== 'home' || editor) back.show();
+    else back.hide();
+    back.onClick(goBack);
+    return () => back.offClick(goBack);
+  }, [editor, page, tg]);
+
+  const items = list(store.read(keys.items));
+  const habits = list(store.read(keys.habits));
+  const goals = list(store.read(keys.goals));
+  const meals = list(store.read(keys.meals));
+  const reminderSettings = { ...defaultReminder, ...store.read(keys.reminders) };
+  const reminderStatus = useReminders({ auth, tg, items, habits, settings: reminderSettings, today, sync });
+  const props = { user: auth.user, items, habits, goals, meals, today, selected, setSelected, navigate, actions, store };
+  let screen;
+  switch (page) {
+    case 'home': screen = <Home {...props}/>; break;
+    case 'calendar': screen = <Planner {...props}/>; break;
+    case 'finance': screen = <Finance {...props}/>; break;
+    case 'services': screen = <Directory navigate={navigate}/>; break;
+    case 'kitchen': screen = <Kitchen {...props}/>; break;
+    case 'habits': screen = <Habits {...props}/>; break;
+    case 'goals': screen = <Goals {...props}/>; break;
+    case 'stats': screen = <Activity {...props}/>; break;
+    case 'cycle': screen = <Cycle {...props}/>; break;
+    case 'profile': screen = <Profile {...props} {...{ theme, changeTheme, auth, sync, reminderSettings, reminderStatus, tg }} onImport={() => setImportOpen(true)}/>; break;
+    default: screen = <Journal key={page} {...props} page={page}/>;
+  }
+  return <div className="shell">
+    <header className="topbar">
+      {services[page] ? <IconButton icon={ArrowLeft} label="К сервисам" onClick={() => navigate('services')}/>
+        : <button className="wordmark" onClick={() => navigate('home')}><Sparkles size={21}/> LUMI</button>}
+      <div className="top-actions">
+        <span className={'cloud ' + sync} role="status" aria-label={syncText(sync)} title={syncText(sync)}>
+          {sync === 'local' || sync === 'error' ? <CloudOff size={18}/> : <Cloud size={18}/>}</span>
+        <IconButton icon={resolved === 'dark' ? Sun : Moon} label="Переключить тему" onClick={() => changeTheme(resolved === 'dark' ? 'light' : 'dark')}/>
+      </div>
+    </header>
+    <main key={page} id="main" aria-busy={sync === 'loading' || undefined}>{screen}</main>
+    <nav className="bottom-nav" aria-label="Главная навигация">{NAV.map(([key, label, Icon]) => {
+      const active = page === key || key === 'services' && services[page];
+      return <button key={key} aria-current={active ? 'page' : undefined} onClick={() => navigate(key)}><Icon size={21}/><span>{label}</span></button>;
+    })}</nav>
+    <datalist id="finance-categories">{categories.map(value => <option value={value} key={value}/>)}</datalist>
+    {importOpen && <Dialog title="Перенос локальных записей" close={() => setImportOpen(false)}>
+      <p>На этом устройстве есть записи из предыдущей версии LUMI. Переносите их, только если они принадлежат вам.</p>
+      <button className="primary" onClick={() => {
+        try { store.importLegacy(); setImportOpen(false); }
+        catch { setError('Не удалось перенести записи.'); }
+      }}>Перенести в мой аккаунт</button>
+      <button className="secondary" onClick={() => setImportOpen(false)}>Позже</button>
+    </Dialog>}
+    {editor && <Editor config={editor} close={() => setEditor(null)}/>}
+    {error && <div className="toast" role="alert">{error} <button className="link" onClick={() => setError('')}>Закрыть</button></div>}
+  </div>;
+}
+
+createRoot(document.getElementById('root')).render(<Root/>);
