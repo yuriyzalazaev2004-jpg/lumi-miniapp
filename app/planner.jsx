@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ArrowUpRight, CalendarDays, ChevronLeft, ChevronRight, Flame, Sparkles, Wallet } from 'lucide-react';
 import { asDate, dayKey, dayLabel, doneOn, keys, kindOf, list, money, occurrence, repeats, shift, total, when } from './model.js';
 import { Add, Heading, IconButton, Ring, Rows, Section, Tabs } from './ui.jsx';
 
 export function Month({ selected, onSelect, marks = {} }) {
   const [month, setMonth] = useState(() => selected.slice(0, 7) + '-01');
+  useEffect(() => setMonth(selected.slice(0, 7) + '-01'), [selected]);
   const first = asDate(month);
   const offset = (first.getDay() + 6) % 7;
   const monthDays = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+  const dayMark = day => typeof marks === 'function' ? marks(day) : marks[day];
   const days = Math.ceil((offset + monthDays) / 7) * 7;
   function change(delta) {
     setMonth(dayKey(new Date(first.getFullYear(), first.getMonth() + delta, 1, 12)));
@@ -19,10 +21,11 @@ export function Month({ selected, onSelect, marks = {} }) {
     <div className="month-grid">{['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map(label => <small key={label}>{label}</small>)}
       {Array.from({ length: days }, (_, index) => {
         const day = shift(month, index - offset);
+        const mark = dayMark(day);
         return <button key={day} aria-pressed={selected === day} aria-current={day === dayKey() ? 'date' : undefined}
-          aria-label={dayLabel(day, { day: 'numeric', month: 'long', year: 'numeric' }) + (marks[day] ? ' · ' + marks[day] : '')}
+          aria-label={dayLabel(day, { day: 'numeric', month: 'long', year: 'numeric' }) + (mark ? ' · ' + mark : '')}
           className={day.slice(0, 7) === month.slice(0, 7) ? '' : 'outside'} onClick={() => onSelect(day)}>
-          {Number(day.slice(-2))}{marks[day] && <i className={marks[day] === 'Прогноз' ? 'predicted' : ''}/>}</button>;
+          {Number(day.slice(-2))}{mark && <i className={mark === 'Прогноз' ? 'predicted' : ''}/>}</button>;
       })}</div>
   </div>;
 }
@@ -59,7 +62,7 @@ function Schedule({ items, actions, selected, store }) {
 
 export function Planner({ items, actions, today, selected, setSelected, store }) {
   const [view, setView] = useState('day');
-  const marks = Object.fromEntries(items.filter(row => row.date && plannerKinds.has(kindOf(row))).map(row => [row.date, 'Есть записи']));
+  const marks = day => onDay(items, day).length ? 'Есть записи' : '';
   return <div className="flow"><Heading title="Мой день" subtitle="Задачи и расписание" icon={CalendarDays}/>
     <Tabs options={[[ 'day', 'День'], ['month', 'Календарь']]} value={view} onChange={setView} label="Вид расписания"/>
     {view === 'month' && <Month selected={selected} onSelect={setSelected} marks={marks}/>}
@@ -79,7 +82,7 @@ export function Home({ user, items, habits, meals, today, navigate, actions, sto
   const expenses = items.filter(row => kindOf(row) === 'expense');
   const next = kind => items.filter(row => kindOf(row) === kind && (!row.done || repeats(row)))
     .map(row => ({ ...row, date: occurrence(row, today) }))
-    .filter(row => row.date && row.date <= shift(today, 30)).sort(when);
+    .filter(row => row.date && row.date <= shift(today, 30) && !row.completedDates?.includes(row.date)).sort(when);
   return <div className="flow">
     <Heading title={'Привет, ' + (user?.first_name || 'друг')} subtitle={dayLabel(today, { weekday: 'long', day: 'numeric', month: 'long' })}/>
     <section className="hero day-hero">

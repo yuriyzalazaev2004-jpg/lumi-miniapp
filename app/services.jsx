@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Cake, ChartNoAxesColumn, ChefHat, ChevronRight, Dumbbell, Flame, Grid2X2, HandCoins, Heart, Repeat2, Target, UserRound } from 'lucide-react';
 import { adminApi } from '../lumi-admin.js';
-import { dayLabel, doneOn, keys, kindOf, money, occurrence, repeats, shift, when } from './model.js';
+import { dayLabel, doneOn, keys, kindOf, list, money, occurrence, repeats, shift, when } from './model.js';
 import { field, required } from './records.js';
 import { Add, Heading, Rows, Section, Tabs } from './ui.jsx';
 
@@ -25,12 +25,23 @@ export function Directory({ navigate }) {
         <strong>{title}</strong><small>{description}</small><ChevronRight className="service-arrow" size={16}/></button>)}</div>
   </div>;
 }
-export function Journal({ page, items, actions, today }) {
+export function Journal({ page, items, actions, store, today }) {
   const [title, Icon, subtitle] = services[page];
   const kind = recordKinds[page];
   const rows = items.filter(row => kindOf(row) === kind).sort(when);
   const balance = row => Math.max(0, Number(row.amount) - Number(row.paid || 0)) || 0;
   const upcoming = row => occurrence(row, today);
+  function markPayment(row) {
+    const date = upcoming(row) || row.date;
+    if (!date) return;
+    actions.attempt(() => store.update(keys.items, value => list(value).map(item => {
+      if (item.id !== row.id) return item;
+      if (!repeats(item)) return { ...item, done: !item.done };
+      const dates = item.completedDates || [];
+      return { ...item, done: item.date === date ? false : item.done,
+        completedDates: doneOn(item, date) ? dates.filter(day => day !== date) : [...dates, date] };
+    })));
+  }
   const isRecurring = kind === 'subscription' || kind === 'birthday';
   if (isRecurring) rows.sort((a, b) => (upcoming(a) || '9999').localeCompare(upcoming(b) || '9999'));
   const detail = row => [
@@ -44,7 +55,8 @@ export function Journal({ page, items, actions, today }) {
     {kind === 'debt' && <div className="hero finance-hero"><small>Остаток по долгам</small>
       <strong>{money(rows.reduce((sum, row) => sum + balance(row), 0))}</strong></div>}
     <Section title="Записи" action={<Add onClick={() => actions.item(kind)}>{addLabels[kind]}</Add>}>
-      <Rows rows={rows} {...actions.itemRows} detail={detail}
+      <Rows rows={kind === 'subscription' ? rows.map(row => ({ ...row, done: Boolean(doneOn(row, upcoming(row) || row.date)) })) : rows}
+        {...actions.itemRows} detail={detail} toggle={kind === 'subscription' ? markPayment : undefined}
         amount={kind === 'debt' ? row => money(balance(row)) : kind === 'subscription' ? row => money(row.amount) : undefined}/>
     </Section>
   </div>;
