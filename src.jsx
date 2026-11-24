@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ArrowLeft, CalendarDays, Cloud, CloudOff, Grid2X2, House, Moon, Sparkles, Sun, UserRound, Wallet } from 'lucide-react';
+import { ArrowLeft, CalendarDays, Cloud, CloudOff, Grid2X2, House, Moon, Plus, Sparkles, Sun, UserRound, Wallet } from 'lucide-react';
 import { dayKey, keys, list } from './app/model.js';
 import { openStorage, readLocal } from './app/storage.js';
 import { actions as recordActions, categories } from './app/records.js';
@@ -85,6 +85,7 @@ function App({ auth, tg, theme, resolved, changeTheme }) {
   const [page, setPage] = useState('home');
   const [today, setToday] = useState(dayKey);
   const [selected, setSelected] = useState(dayKey);
+  const [quickAdd, setQuickAdd] = useState(false);
   const [editor, setEditor] = useState(null);
   const [error, setError] = useState('');
   const [importOpen, setImportOpen] = useState(() => store.canImport());
@@ -99,20 +100,20 @@ function App({ auth, tg, theme, resolved, changeTheme }) {
     return () => clearInterval(clock);
   }, []);
 
-  function navigate(next) {
-    if (next === 'calendar' && page === 'home') setSelected(today);
+  function navigate(next, day) {
+    if (next === 'calendar' && (day || page === 'home')) setSelected(day || today);
     setPage(next);
     window.scrollTo(0, 0);
   }
   useEffect(() => {
     const back = tg?.BackButton;
     if (!back) return;
-    const goBack = () => editor ? setEditor(null) : navigate(services[page] ? 'services' : 'home');
-    if (page !== 'home' || editor) back.show();
+    const goBack = () => editor ? setEditor(null) : quickAdd ? setQuickAdd(false) : navigate(services[page] ? 'services' : 'home');
+    if (page !== 'home' || editor || quickAdd) back.show();
     else back.hide();
     back.onClick(goBack);
     return () => back.offClick(goBack);
-  }, [editor, page, tg]);
+  }, [editor, page, quickAdd, tg]);
 
   const items = list(store.read(keys.items));
   const habits = list(store.read(keys.habits));
@@ -145,10 +146,11 @@ function App({ auth, tg, theme, resolved, changeTheme }) {
         <IconButton icon={resolved === 'dark' ? Sun : Moon} label="Переключить тему" onClick={() => changeTheme(resolved === 'dark' ? 'light' : 'dark')}/>
       </div>
     </header>
-    <main key={page} id="main" aria-busy={sync === 'loading' || undefined}>{screen}</main>
+    <main key={page} data-page={page} id="main" aria-busy={sync === 'loading' || undefined}>{screen}</main>
     <nav className="bottom-nav" aria-label="Главная навигация">{NAV.map(([key, label, Icon]) => {
       const active = page === key || key === 'services' && services[page];
-      return <button key={key} aria-current={active ? 'page' : undefined} onClick={() => navigate(key)}><Icon size={21}/><span>{label}</span></button>;
+      return <React.Fragment key={key}>{key === 'finance' && <button className="dock-add" aria-label="Быстро добавить" onClick={() => setQuickAdd(true)}><Plus size={23}/></button>}
+        <button aria-current={active ? 'page' : undefined} onClick={() => navigate(key)}><Icon size={20}/><span>{label}</span></button></React.Fragment>;
     })}</nav>
     <datalist id="finance-categories">{categories.map(value => <option value={value} key={value}/>)}</datalist>
     {importOpen && <Dialog title="Перенос локальных записей" close={() => setImportOpen(false)}>
@@ -158,6 +160,10 @@ function App({ auth, tg, theme, resolved, changeTheme }) {
         catch { setError('Не удалось перенести записи.'); }
       }}>Перенести в мой аккаунт</button>
       <button className="secondary" onClick={() => setImportOpen(false)}>Позже</button>
+    </Dialog>}
+    {quickAdd && <Dialog title="Быстро добавить" close={() => setQuickAdd(false)}>
+      <div className="quick-grid">{[['task', 'Задача'], ['event', 'Событие'], ['income', 'Доход'], ['expense', 'Расход']].map(([kind, label]) =>
+        <button key={kind} onClick={() => { setQuickAdd(false); actions.item(kind, null, page === 'calendar' ? selected : today); }}>{label}</button>)}</div>
     </Dialog>}
     {editor && <Editor config={editor} close={() => setEditor(null)}/>}
     {error && <div className="toast" role="alert">{error} <button className="link" onClick={() => setError('')}>Закрыть</button></div>}

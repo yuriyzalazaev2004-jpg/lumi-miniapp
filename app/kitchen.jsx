@@ -96,6 +96,9 @@ export default function Kitchen({ store, items, actions, today }) {
 
   return <div className="flow">
     <Heading title="Моя кухня" subtitle="Запасы и меню" icon={ChefHat}/>
+    <div className="kitchen-cover"><div><small>В холодильнике</small><strong>{fridge.length}</strong></div>
+      <div><small>В покупках</small><strong>{shopping.filter(row => !row.done).length}</strong></div>
+      <div><small>Рецептов</small><strong>{RUSSIAN_RECIPES.length}</strong></div></div>
     <Tabs options={modes} value={mode} onChange={value => { setMode(value); setQuery(''); }} label="Раздел кухни"/>
     {mode === 'fridge' && <>
       <Section title="Запасы" action={<Add onClick={() => stock('')}/>}>

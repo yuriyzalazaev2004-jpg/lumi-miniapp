@@ -28,9 +28,10 @@ export function Ring({ value, label }) {
     <div><strong>{value}%</strong>{label && <small>{label}</small>}</div>
   </div>;
 }
-export function Rows({ rows, empty, edit, remove, toggle, detail, amount }) {
+export function Rows({ rows, empty, edit, remove, toggle, detail, amount, leading }) {
   if (!rows.length) return <div className="card"><Empty>{empty || 'Записей пока нет.'}</Empty></div>;
   return <ul className="card rows">{rows.map((row, index) => <li key={row.id ?? index}>
+    {leading?.(row)}
     {toggle && <IconButton icon={row.done ? Check : Circle} label={row.done ? 'Снять отметку' : 'Отметить выполнение'}
       aria-pressed={Boolean(row.done)} onClick={() => toggle(row)}/>}
     <div className="row-copy"><strong>{titleOf(row)}</strong>{detail && <small>{detail(row)}</small>}</div>
